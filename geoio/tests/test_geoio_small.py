@@ -11,6 +11,8 @@ import geoio
 from geoio import constants as const
 import dgsamples
 
+print("Jan is testing")
+
 class TestGeoioEnv(unittest.TestCase):
     """Testing for :
     geoio environment
