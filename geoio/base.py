@@ -881,7 +881,7 @@ class GeoImage(object):
         this is a .vrt or .til file, then it will pull only the data from
         the file specified in self.dfile_tiles.  Component is specified base 1.
 
-        The isn't generally a reason to call both component and window,
+        There isn't generally a reason to call both component and window,
         but it isn't explicitly disallowed.  If window and component are both
         specified, the resulting data window is relative to the coordinates
         of the specified component.
@@ -895,7 +895,27 @@ class GeoImage(object):
         if component is not None:
             if component == 0:
                 raise ValueError("Component should be specified as based 1.")
+<<<<<<< HEAD
 
+=======
+            ##
+            # I think it is ok to call a single tile with component!
+            #if not tt.files.filter(self.meta_geoimg.file_name,
+            #                       ["*.vrt","*.til"],case_sensitive=False):
+            #    raise ValueError("Component value is only valid when the "
+            #                     "file is a VRT or TIL file.")
+            ##
+            # This shouldn't be triggered since til is converted to vrt
+            # if tt.files.filter(self.meta_geoimg.file_name,['*.til'],
+            #                                          case_sensitive=False):
+            if os.path.splitext(self.files.dfile)[1].upper() == '.TIL':
+                raise ValueError("TIL file handling is not complete.")
+            flist = [x for x in self.meta_geoimg.file_list if not
+                                    tt.files.filter(x, ['*.vrt', '*.til'],
+                                                    case_sensitive=False)]
+
+            ##
+>>>>>>> first unittests
             if component > len(self.files.dfile_tiles):
                 raise ValueError("You've requested a component value greater "
                                  "than the number available.")
@@ -1095,7 +1115,7 @@ class GeoImage(object):
 
 
     def _instantiate_geom(self,g):
-        """Attempt to convert the geometry pass in to and ogr Geometry
+        """Attempt to convert the geometry pass in to an ogr Geometry
         object.  Currently implements the base ogr.CreateGeometryFrom*
         methods and will reform fiona geometry dictionaries into a format
         that ogr.CreateGeometryFromJson will correctly handle.

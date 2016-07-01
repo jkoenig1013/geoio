@@ -1,12 +1,9 @@
-# Jan's version
-
 import unittest
 import os
 import collections
 from osgeo import gdalconst
 import numpy as np
 import warnings
-import json
 
 import geoio.dg
 import tinytools as tt
@@ -60,7 +57,7 @@ class TestGeoImage(unittest.TestCase):
         self.assertIsInstance(self.img.files,tt.bunch.OrderedBunch)
 
     def test_GeoImage_meta_exists(self):
-        self.assertIsInstance(self.img.meta,tt.bunch.OrderedBunch)
+        self.assertIsInstance(self.img.meta_geoimg,tt.bunch.OrderedBunch)
 
     def test_GeoImage_shape(self):
         self.assertEqual(self.img.shape,(8,500,501))
@@ -79,7 +76,7 @@ class TestGeoImage(unittest.TestCase):
     def test_GeoImage_get_data_dtypes(self):
         a = self.img.get_data()
         self.assertEqual(const.DICT_NP_TO_GDAL[a.dtype],
-                         self.img.meta.gdal_dtype)
+                         self.img.meta_geoimg.data_type)
 
     def test_GeoImage_write_img_like_this(self):
         a = (self.img.get_data()*0.01).astype('float32')
@@ -92,8 +89,6 @@ class TestGeoImage_getdata(unittest.TestCase):
     def setUp(self):
         self.test_img = dgsamples.wv2_longmont_1k.ms
         self.img = geoio.GeoImage(self.test_img)
-        self.test_vecpath_json = dgsamples.wv2_longmont_1k_vectors.poly_geojson
-        self.test_vecpath_shp = dgsamples.wv2_longmont_1k_vectors.poly_shp
 
     def tearDown(self):
         # Remove gdal image object
@@ -113,6 +108,10 @@ class TestGeoImage_getdata(unittest.TestCase):
         d = self.img.get_data(bands=[7,3,1])
         self.assertEqual(d.shape,(3,501,500))
 
+    def test_get_data_band_value(self):
+        d = self.img.get_data()
+        known =  [333, 219, 303, 332, 179, 408, 301, 510]
+        self.assertItemsEqual(d[:, 333, 361], known)
 
     def test_get_data_window_centered(self):
         d = self.img.get_data(window=[10,10,21,23])
@@ -120,66 +119,20 @@ class TestGeoImage_getdata(unittest.TestCase):
 
     def test_get_data_window_edge(self):
         d = self.img.get_data(window=[499,500,1,1])
-        known = np.array([[[354]],[[226]],[[304]],[[341]],[[176]],[[430]],[[312]],[[518]]])
+        known = np.array(
+            [[[354]],[[226]],[[304]],[[341]],[[176]],[[430]],[[312]],[[518]]])
         self.assertTrue(np.array_equal(d,known))
-
-#****************
-
-    def test_get_data_band_value(self):
-        d = self.img.get_data()
-        known =  [333, 219, 303, 332, 179, 408, 301, 510]
-        self.assertItemsEqual(d[:, 333, 361], known)
-
-    def test_get_data_buffer_value(self):
-        buffsize = 1
-        d = self.img.get_data(buffer=buffsize)
-        known =  [333, 219, 303, 332, 179, 408, 301, 510]
-        self.assertItemsEqual(d[:, 333 + buffsize, 361 + buffsize], known)
-
-    def test_get_data_buffer_negvalue(self):
-        buffsize = -1
-        d = self.img.get_data(buffer=buffsize)
-        known =  [333, 219, 303, 332, 179, 408, 301, 510]
-        self.assertItemsEqual(d[:, 333 + buffsize, 361 + buffsize], known)
 
     def test_get_data_buffer_size(self):
         d = self.img.get_data(buffer=10)
         known = (8, 521, 520)
         self.assertTrue(d.shape, known)
 
-    def test_get_data_buffer_negsize(self):
-        d = self.img.get_data(buffer=-10)
-        known = (8, 481, 480)
-        self.assertTrue(d.shape, known)
+    #def test_get_data_buffer_value(self):
+        #d = self.img.get_data(buffer=10)
 
-    def test_get_data_window_10_10(self):
-        d = self.img.get_data(window=[10, 10, 30, 40])
-        known_size = 9600
-        self.assertEqual(d.size, known_size)
-        known_shape = (8, 40, 30)
-        self.assertEqual(d.shape, known_shape)
-        known_max = 1431
-        self.assertEqual(d.max(), known_max)
-        known_min = 47
-        self.assertEqual(d.min(), known_min)
-
-    def test_get_data_geom(self):
-        with open(self.test_vecpath_json) as f:
-            data = json.load(f)
-        print type(data)
-
-        for feature in data['features']:
-            print feature
-            print feature['geometry']['type']
-            print feature['geometry']['coordinates']
-
-
-        #geom_from_json = data['geometry']['coordinates']
-        #d = self.img.get_data(geom = geom_from_json)
-
-
-    #def test_get_data_wrongbandnum_throwsexc(self):
-        #self.assertRaises(Exception, self.img.get_data(10))
+    def test_get_data_wrongbandnum_throwsexc(self):
+        self.assertRaises(Exception, self.img.get_data(10))
 
 
 class TestGeoImage_iter_vector(unittest.TestCase):
@@ -187,8 +140,8 @@ class TestGeoImage_iter_vector(unittest.TestCase):
     def setUp(self):
         self.test_img = dgsamples.wv2_longmont_1k.ms
         self.img = geoio.GeoImage(self.test_img)
-        self.vec = dgsamples.wv2_longmont_1k_vectors.poly_geojson_latlon
-        self.badvec = dgsamples.bayou_vectors.poly
+        self.vec = dgsamples.wv2_longmont_1k_vectors.files[1]
+        self.badvec = dgsamples.bayou_vectors.files[2]
 
     def tearDown(self):
         # Remove gdal image object
@@ -332,9 +285,9 @@ class TestDGImage(unittest.TestCase):
         self.assertIsInstance(self.img.meta_dg,tt.bunch.OrderedBunch)
 
     def test_DGImage_dg_meta_abscal(self):
-        self.assertTrue(len(self.img.meta.effbandwidth)==8)
-        self.assertTrue(len(self.img.meta.abscalfactor)==8)
-        self.assertIsInstance(self.img.meta.effbandwidth[0],float)
+        self.assertTrue(len(self.img.meta_dg_quick.effbandwidth)==8)
+        self.assertTrue(len(self.img.meta_dg_quick.abscalfactor)==8)
+        self.assertIsInstance(self.img.meta_dg_quick.effbandwidth[0],float)
 
     def test_DGImage_get_data_as_at_sensor_rad_dtype(self):
         """Output for at sensor radiance should be a numpy array of float32."""
